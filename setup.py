@@ -24,7 +24,7 @@ CLASSIFIERS = [
 with open("README.rst", "rt") as f:
     DESCRIPTION = f.read()
 
-REQUIREMENTS = ["boto3~=1.7", "awscli~=1.16.144", "fs~=2.2", "six~=1.10"]
+REQUIREMENTS = ["botocore", "boto3~=1.7", "awscli~=1.16.144", "fs~=2.2", "six~=1.10"]
 
 setup(
     name="fs-ossfs",
@@ -39,7 +39,7 @@ setup(
     keywords=["pyfilesystem", "AliCloud", "oss"],
     platforms=["any"],
     test_suite="nose.collector",
-    url="http://choppy.3steps.cn/go-choppy/ossfs",
+    url="https://github.com/go-choppy/fs.ossfs",
     version=__version__,
     entry_points={
         "fs.opener": ["oss = fs_ossfs.opener:OSSFSOpener"]

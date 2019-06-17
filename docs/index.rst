@@ -1,10 +1,9 @@
-.. OSSFS documentation master file, created by
-   sphinx-quickstart on Sat Aug  5 12:55:45 2017.
+.. OSSFS documentation master file, created by sphinx-quickstart.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
 OSSFS
-====
+=====
 
 OSSFS is a `PyFilesystem interface
 <https://docs.pyfilesystem.org/en/latest/reference/base.html>`_ to
@@ -23,13 +22,13 @@ OSSFS may be installed from pip with the following command::
 This will install the most recent stable version.
 
 Alternatively, if you want the cutting edge code, you can check out
-the GitHub repos at http://choppy.3steps.cn/go-choppy/ossfs
+the GitHub repos at https://github.com/go-choppy/fs.ossfs
 
 
 Opening an OSS Filesystem
-========================
+=========================
 
-There are two options for constructing a :ref:`ossfs` instance. The simplest way
+There are two options for constructing a ossfs instance. The simplest way
 is with an *opener*, which is a simple URL like syntax. Here is an example::
 
     from fs import open_fs
@@ -42,7 +41,7 @@ it explicitly::
     ossfs = OSSFS('mybucket')
 
 OSSFS Constructor
-----------------
+-----------------
 
 .. autoclass:: fs_ossfs.OSSFS
     :members:
@@ -95,7 +94,7 @@ Here's how you specify credentials with the constructor::
 
 
 OSS Info
-=======
+========
 
 You can retrieve OSS info via the ``oss`` namespace. Here's an example:
 

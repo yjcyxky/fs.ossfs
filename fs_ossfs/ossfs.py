@@ -1,34 +1,44 @@
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import unicode_literals
+# -*- coding: utf-8 -*-
+"""
+    fs_ossfs.ossfs
+    ~~~~~~~~~~~~~~
+
+    AliCloud OSS filesystem for PyFilesystem2(Based on https://github.com/PyFilesystem/s3fs).
+
+    :copyright: © 2019 by the Choppy team.
+    :license: AGPL, see LICENSE.md for more details.
+"""
+
+# Python Future
+from __future__ import absolute_import, print_function, unicode_literals
+
+# Standard Library
+import contextlib
+import io
+import itertools
+import logging
+import mimetypes
+import os
+import tempfile
+import threading
+from datetime import datetime
+from ssl import SSLError
+from subprocess import check_output
+
+# Third Party
+import six
+from botocore.exceptions import ClientError, EndpointConnectionError
+from fs import ResourceType, errors
+from fs.base import FS
+from fs.info import Info
+from fs.mode import Mode
+from fs.path import basename, dirname, forcedir, join, normpath, relpath
+from fs.subfs import SubFS
+from fs.time import datetime_to_epoch
+from six import text_type
 
 __all__ = ["OSSFS"]
 
-import logging
-import contextlib
-from datetime import datetime
-import io
-import itertools
-import os
-from ssl import SSLError
-import tempfile
-import threading
-import mimetypes
-
-from botocore.exceptions import ClientError, EndpointConnectionError
-
-import six
-from six import text_type
-
-from fs import ResourceType
-from fs.base import FS
-from fs.info import Info
-from fs import errors
-from fs.mode import Mode
-from fs.subfs import SubFS
-from fs.path import basename, dirname, forcedir, join, normpath, relpath
-from fs.time import datetime_to_epoch
-from subprocess import check_output
 
 logger = logging.getLogger(__name__)
 
@@ -42,15 +52,17 @@ def exist_tool(name):
 
 
 def _make_repr(class_name, *args, **kwargs):
-    """
-    Generate a repr string.
+    """Generate a repr string.
+
     Positional arguments should be the positional arguments used to
     construct the class. Keyword arguments should consist of tuples of
     the attribute value and default. If the value is the default, then
     it won't be rendered in the output.
-    Here's an example::
+
+    Examples::
         def __repr__(self):
             return make_repr('MyClass', 'foo', name=(self.name, None))
+
     The output of this would be something line ``MyClass('foo',
     name='Will')``.
     """
@@ -123,6 +135,7 @@ class OSSFile(io.IOBase):
         else:
             size = 0
             lines = []
+
             for line in iter(self._f.readline, b""):
                 lines.append(line)
                 size += len(line)
@@ -133,6 +146,7 @@ class OSSFile(io.IOBase):
     def seek(self, offset, whence=os.SEEK_SET):
         if whence not in (os.SEEK_CUR, os.SEEK_END, os.SEEK_SET):
             raise ValueError("invalid value for 'whence'")
+
         self._f.seek(offset, whence)
         return self._f.tell()
 
@@ -151,6 +165,7 @@ class OSSFile(io.IOBase):
     def read(self, n=-1):
         if not self.__mode.reading:
             raise IOError("not open for reading")
+
         return self._f.read(n)
 
     def readall(self):
@@ -162,12 +177,14 @@ class OSSFile(io.IOBase):
     def write(self, b):
         if not self.__mode.writing:
             raise IOError("not open for reading")
+
         self._f.write(b)
         return len(b)
 
     def truncate(self, size=None):
         if size is None:
             size = self._f.tell()
+
         self._f.truncate(size)
         return size
 
@@ -183,6 +200,7 @@ def osserrors(path):
         response_meta = error.response.get("ResponseMetadata", {})
         http_status = response_meta.get("HTTPStatusCode", 200)
         error_msg = _error.get("Message", None)
+
         if error_code == "NoSuchBucket":
             raise errors.ResourceError(path, exc=error, msg=error_msg)
         if http_status == 404:
@@ -199,33 +217,33 @@ def osserrors(path):
 
 @six.python_2_unicode_compatible
 class OSSFS(FS):
-    """
-    Construct an AliCloud OSS filesystem for
-    `PyFilesystem <https://pyfilesystem.org>`_
-    :param str bucket_name: The OSS bucket name.
-    :param str dir_path: The root directory within the OSS Bucket.
-        Defaults to ``"/"``
-    :param str aws_access_key_id: The access key, or ``None`` to read
-        the key from standard configuration files.
-    :param str aws_secret_access_key: The secret key, or ``None`` to
-        read the key from standard configuration files.
-    :param str endpoint_url: Alternative endpoint url (``None`` to use
-        default).
-    :param str aws_session_token:
-    :param str region: Optional OSS region.
-    :param str delimiter: The delimiter to separate folders, defaults to
-        a forward slash.
-    :param bool strict: When ``True`` (default) OSSFS will follow the
-        PyFilesystem specification exactly. Set to ``False`` to disable
-        validation of destination paths which may speed up uploads /
-        downloads.
-    :param str cache_control: Sets the 'Cache-Control' header for uploads.
-    :param str acl: Sets the Access Control List header for uploads.
-    :param dict upload_args: A dictionary for additional upload arguments.
-        See https://boto3.readthedocs.io/en/latest/reference/services/s3.html#S3.Object.put
-        for details.
-    :param dict download_args: Dictionary of extra arguments passed to
-        the OSS client.
+    """Construct an AliCloud OSS filesystem for `PyFilesystem <https://pyfilesystem.org>`_
+
+    Arguments:
+        bucket_name (str): The OSS bucket name.
+        dir_path (str): The root directory within the OSS Bucket. \
+            Defaults to ``"/"``
+        aws_access_key_id (str): The access key, or ``None`` to read \
+            the key from standard configuration files.
+        aws_secret_access_key (str): The secret key, or ``None`` to \
+            read the key from standard configuration files.
+        endpoint_url (str): Alternative endpoint url (``None`` to use \
+            default).
+        aws_session_token (str):
+        region (str): Optional OSS region.
+        delimiter (str): The delimiter to separate folders, defaults to \
+            a forward slash.
+        strict (bool): When ``True`` (default) OSSFS will follow the \
+            PyFilesystem specification exactly. Set to ``False`` to disable \
+            validation of destination paths which may speed up uploads / \
+            downloads.
+        cache_control (str): Sets the 'Cache-Control' header for uploads.
+        acl (str): Sets the Access Control List header for uploads.
+        upload_args (dict): A dictionary for additional upload arguments. \
+            See https://boto3.readthedocs.io/en/latest/reference/services/s3.html#S3.Object.put \
+            for details.
+        download_args (dict): Dictionary of extra arguments passed to \
+            the OSS client.
     """
 
     _meta = {
@@ -284,11 +302,13 @@ class OSSFS(FS):
     ):
         self._init_aliyun()
         _creds = (aws_access_key_id, aws_secret_access_key)
+
         if any(_creds) and not all(_creds):
             raise ValueError(
                 "aws_access_key_id and aws_secret_access_key "
                 "must be set together if specified"
             )
+
         self._bucket_name = bucket_name
         self.dir_path = dir_path
         self._prefix = relpath(normpath(dir_path)).rstrip("/")
@@ -300,21 +320,25 @@ class OSSFS(FS):
         self.delimiter = delimiter
         self.strict = strict
         self._tlocal = threading.local()
+
         if cache_control or acl:
             upload_args = upload_args or {}
             if cache_control:
                 upload_args["CacheControl"] = cache_control
             if acl:
                 upload_args["ACL"] = acl
+
         self.upload_args = upload_args
         self.download_args = download_args
         super(OSSFS, self).__init__()
 
     def _init_aliyun(self):
         import tempfile
+
         temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.conf')
         temp_file.close()
         os.environ['AWS_CONFIG_FILE'] = temp_file.name
+
         if exist_tool('aws'):
             shell_cmd = ['aws', 'configure', 'set', 's3.addressing_style', 'virtual', '--p', 'aliyun']
             logger.debug('Initialize AliCloud OSS: %s' % ' '.join(shell_cmd))
@@ -358,6 +382,7 @@ class OSSFS(FS):
 
     def _get_object(self, path, key):
         _key = key.rstrip(self.delimiter)
+
         try:
             with osserrors(path):
                 obj = self.oss.Object(self._bucket_name, _key)
@@ -372,11 +397,13 @@ class OSSFS(FS):
 
     def _get_upload_args(self, key):
         upload_args = self.upload_args.copy() if self.upload_args else {}
+
         if "ContentType" not in upload_args:
             mime_type, _encoding = mimetypes.guess_type(key)
             if six.PY2 and mime_type is not None:
                 mime_type = mime_type.decode("utf-8", "replace")
             upload_args["ContentType"] = mime_type or "binary/octet-stream"
+
         return upload_args
 
     @property
@@ -388,6 +415,7 @@ class OSSFS(FS):
                                            aws_secret_access_key=self.aws_secret_access_key,
                                            aws_session_token=self.aws_session_token,
                                            region_name=self.region)
+
         return self._tlocal.session
 
     @property
@@ -401,6 +429,7 @@ class OSSFS(FS):
                 aws_session_token=self.aws_session_token,
                 endpoint_url=self.endpoint_url,
             )
+
         return self._tlocal.oss
 
     @property
@@ -414,6 +443,7 @@ class OSSFS(FS):
                 aws_session_token=self.aws_session_token,
                 endpoint_url=self.endpoint_url,
             )
+
         return self._tlocal.client
 
     def _info_from_object(self, obj, namespaces):
@@ -423,6 +453,7 @@ class OSSFS(FS):
         name = basename(path.rstrip("/"))
         is_dir = key.endswith(self.delimiter)
         info = {"basic": {"name": name, "is_dir": is_dir}}
+
         if "details" in namespaces:
             _type = int(ResourceType.directory if is_dir else ResourceType.file)
             info["details"] = {
@@ -431,6 +462,7 @@ class OSSFS(FS):
                 "size": obj.content_length,
                 "type": _type,
             }
+
         if "oss" in namespaces:
             ossinfo = info["oss"] = {}
             for name in self._object_attributes:
@@ -438,16 +470,19 @@ class OSSFS(FS):
                 if isinstance(value, datetime):
                     value = datetime_to_epoch(value)
                 ossinfo[name] = value
+
         if "urls" in namespaces:
             url = self.client.generate_presigned_url(
                 ClientMethod="get_object",
                 Params={"Bucket": self._bucket_name, "Key": key},
             )
             info["urls"] = {"download": url}
+
         return info
 
     def isdir(self, path):
         _path = self.validatepath(path)
+
         try:
             return self._getinfo(_path).is_dir
         except errors.ResourceNotFound:
@@ -486,6 +521,7 @@ class OSSFS(FS):
         namespaces = namespaces or ()
         _path = self.validatepath(path)
         _key = self._path_to_key(_path)
+
         if _path == "/":
             return Info(
                 {
@@ -504,18 +540,22 @@ class OSSFS(FS):
         prefix_len = len(_oss_key)
 
         paginator = self.client.get_paginator("list_objects")
+
         with osserrors(path):
             _paginate = paginator.paginate(
                 Bucket=self._bucket_name, Prefix=_oss_key, Delimiter=self.delimiter
             )
             _directory = []
+
             for result in _paginate:
                 common_prefixes = result.get("CommonPrefixes", ())
+
                 for prefix in common_prefixes:
                     _prefix = prefix.get("Prefix")
                     _name = _prefix[prefix_len:]
                     if _name:
                         _directory.append(_name.rstrip(self.delimiter))
+
                 for obj in result.get("Contents", ()):
                     name = obj["Key"][prefix_len:]
                     if name:
@@ -544,9 +584,11 @@ class OSSFS(FS):
                 return self.opendir(_path)
             else:
                 raise errors.DirectoryExists(path)
+
         with osserrors(path):
             _obj = self.oss.Object(self._bucket_name, _key)
             _obj.put(**self._get_upload_args(_key))
+
         return SubFS(self, path)
 
     def openbin(self, path, mode="r", buffering=-1, **options):
@@ -557,7 +599,6 @@ class OSSFS(FS):
         _key = self._path_to_key(_path)
 
         if _mode.create:
-
             def on_close_create(ossfile):
                 """Called when the OSS file closes, to upload data."""
                 try:
@@ -591,6 +632,7 @@ class OSSFS(FS):
                     raise errors.FileExpected(path)
 
             ossfile = OSSFile.factory(path, _mode, on_close=on_close_create)
+
             if _mode.appending:
                 try:
                     with osserrors(path):
@@ -628,10 +670,12 @@ class OSSFS(FS):
                 ossfile.raw.close()
 
         ossfile = OSSFile.factory(path, _mode, on_close=on_close)
+
         with osserrors(path):
             self.client.download_fileobj(
                 self._bucket_name, _key, ossfile.raw, ExtraArgs=self.download_args
             )
+
         ossfile.seek(0, os.SEEK_SET)
         return ossfile
 
@@ -639,10 +683,12 @@ class OSSFS(FS):
         self.check()
         _path = self.validatepath(path)
         _key = self._path_to_key(_path)
+
         if self.strict:
             info = self.getinfo(path)
             if info.is_dir:
                 raise errors.FileExpected(path)
+
         self.client.delete_object(Bucket=self._bucket_name, Key=_key)
 
     def isempty(self, path):
@@ -653,6 +699,7 @@ class OSSFS(FS):
             Bucket=self._bucket_name, Prefix=_key, MaxKeys=2
         )
         contents = response.get("Contents", ())
+
         for obj in contents:
             if obj["Key"] != _key:
                 return False
@@ -661,13 +708,18 @@ class OSSFS(FS):
     def removedir(self, path):
         self.check()
         _path = self.validatepath(path)
+
         if _path == "/":
             raise errors.RemoveRootError()
+
         info = self.getinfo(_path)
+
         if not info.is_dir:
             raise errors.DirectoryExpected(path)
+
         if not self.isempty(path):
             raise errors.DirectoryNotEmpty(path)
+
         _key = self._path_to_dir_key(_path)
         self.client.delete_object(Bucket=self._bucket_name, Key=_key)
 
@@ -676,27 +728,34 @@ class OSSFS(FS):
 
     def readbytes(self, path):
         self.check()
+
         if self.strict:
             info = self.getinfo(path)
             if not info.is_file:
                 raise errors.FileExpected(path)
+
         _path = self.validatepath(path)
         _key = self._path_to_key(_path)
         bytes_file = io.BytesIO()
+
         with osserrors(path):
             self.client.download_fileobj(
                 self._bucket_name, _key, bytes_file, ExtraArgs=self.download_args
             )
+
         return bytes_file.getvalue()
 
     def download(self, path, file, chunk_size=None, **options):
         self.check()
+
         if self.strict:
             info = self.getinfo(path)
             if not info.is_file:
                 raise errors.FileExpected(path)
+
         _path = self.validatepath(path)
         _key = self._path_to_key(_path)
+
         with osserrors(path):
             self.client.download_fileobj(
                 self._bucket_name, _key, file, ExtraArgs=self.download_args
@@ -705,9 +764,12 @@ class OSSFS(FS):
     def exists(self, path):
         self.check()
         _path = self.validatepath(path)
+
         if _path == "/":
             return True
+
         _key = self._path_to_dir_key(_path)
+
         try:
             self._get_object(path, _key)
         except errors.ResourceNotFound:
@@ -766,6 +828,7 @@ class OSSFS(FS):
 
         _path = self.validatepath(path)
         _key = self._path_to_key(_path)
+
         if self.strict:
             if not self.isdir(dirname(path)):
                 raise errors.ResourceNotFound(path)
@@ -807,13 +870,17 @@ class OSSFS(FS):
     def copy(self, src_path, dst_path, overwrite=False):
         if not overwrite and self.exists(dst_path):
             raise errors.DestinationExists(dst_path)
+
         _src_path = self.validatepath(src_path)
         _dst_path = self.validatepath(dst_path)
+
         if self.strict:
             if not self.isdir(dirname(_dst_path)):
                 raise errors.ResourceNotFound(dst_path)
+
         _src_key = self._path_to_key(_src_path)
         _dst_key = self._path_to_key(_dst_path)
+
         try:
             with osserrors(src_path):
                 self.client.copy_object(
@@ -833,6 +900,7 @@ class OSSFS(FS):
     def geturl(self, path, purpose="download"):
         _path = self.validatepath(path)
         _key = self._path_to_key(_path)
+
         if _path == "/":
             raise errors.NoURL(path, purpose)
         if purpose == "download":

@@ -1,16 +1,25 @@
-# coding: utf-8
-"""Defines the OSSFSpener."""
+# -*- coding: utf-8 -*-
+"""
+    fs_ossfs.opener
+    ~~~~~~~~~~~~~~~
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import unicode_literals
+    Defines the OSSFSpener.
 
-__all__ = ['OSSFSOpener']
+    :copyright: © 2019 by the Choppy team.
+    :license: AGPL, see LICENSE.md for more details.
+"""
 
+# Python Future
+from __future__ import absolute_import, print_function, unicode_literals
+
+# Third Party
 from fs.opener import Opener
 from fs.opener.errors import OpenerError
 
-from ._ossfs import OSSFS
+# Local Folder
+from .ossfs import OSSFS
+
+__all__ = ['OSSFSOpener']
 
 
 class OSSFSOpener(Opener):

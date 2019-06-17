@@ -1,14 +1,16 @@
+# Python Future
 from __future__ import unicode_literals
 
+# Standard Library
 import unittest
 
-from nose.plugins.attrib import attr
-
+# Third Party
+import boto3
 from fs.test import FSTestCases
 
+# My Stuff
 from fs_ossfs import OSSFS
-
-import boto3
+from nose.plugins.attrib import attr
 
 
 class TestOSSFS(FSTestCases, unittest.TestCase):
