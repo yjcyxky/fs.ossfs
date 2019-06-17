@@ -1,0 +1,44 @@
+# {% set data = load_setup_py_data() %}
+{% set version = '1.1.0' %}
+{% set url = 'http://choppy.3steps.cn' %}
+{% set description = 'AliCloud OSS filesystem for PyFilesystem2.' %}
+
+package:
+  name: fs-ossfs
+  version: {{ version }}
+
+
+source:
+  - path: ../
+
+
+build:
+  include_recipe: True
+  number: 0
+  script: "{{ PYTHON }} -m pip install . --no-deps --ignore-installed -vv "  
+
+requirements:
+  build:
+    - python
+    - setuptools
+
+  run:
+    - boto3~=1.7
+    - awscli~=1.16.144
+    - fs~=2.2
+    - six~=1.10
+
+test:
+  imports:
+    - fs_ossfs
+
+about:
+  home: {{ url }}
+  license: MIT
+  license_file: LICENSE
+  license_family: MIT
+
+  summary: {{ description }}
+  description: {{ description }}
+  doc_url: http://docs.3steps.cn
+  dev_url: {{ url }}
