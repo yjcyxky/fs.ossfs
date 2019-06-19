@@ -32,7 +32,7 @@ Or with a FS URL:
 
 ## Downloading Files
 
-To *download* files from an OSS bucket, open a file on the OSS
+To _download_ files from an OSS bucket, open a file on the OSS
 filesystem for reading, then write the data to a file on the local
 filesystem. Here's an example that copies a file `example.mov` from
 OSS to your HD:
@@ -54,7 +54,7 @@ copy_file(ossfs, 'example.mov', './', 'example.mov')
 
 ## Uploading Files
 
-You can *upload* files in the same way. Simply copy a file from a
+You can _upload_ files in the same way. Simply copy a file from a
 source filesystem to the OSS filesystem.
 See [Moving and Copying](https://docs.pyfilesystem.org/en/latest/guide.html#moving-and-copying)
 for more information.
@@ -62,12 +62,12 @@ for more information.
 ## ExtraArgs
 
 OSS objects have additional properties, beyond a traditional
-filesystem. These options can be set using the ``upload_args``
-and ``download_args`` properties. which are handed to upload
+filesystem. These options can be set using the `upload_args`
+and `download_args` properties. which are handed to upload
 and download methods, as appropriate, for the lifetime of the
 filesystem instance.
 
-For example, to set the ``cache-control`` header of all objects
+For example, to set the `cache-control` header of all objects
 uploaded to a bucket:
 
 ```python
@@ -76,7 +76,7 @@ ossfs = OSSFS('example', upload_args={"CacheControl": "max-age=2592000", "ACL": 
 fs.mirror.mirror('/path/to/mirror', ossfs)
 ```
 
-see [the Boto3 docs](https://boto3.readthedocs.io/en/latest/reference/customizations/oss.html#boto3.oss.transfer.OSSTransfer.ALLOWED_UPLOAD_ARGS)
+see [the Boto3 docs](https://boto3.readthedocs.io/en/latest/reference/customizations/s3.html#boto3.s3.transfer.S3Transfer.ALLOWED_UPLOAD_ARGS)
 for more information.
 
 `acl` and `cache_control` are exposed explicitly for convenience, and can be used in URLs.
@@ -87,7 +87,6 @@ import fs, fs.mirror
 with open fs.open_fs('oss://example?acl=public-read&cache_control=max-age%3D2592000%2Cpublic') as ossfs
     fs.mirror.mirror('/path/to/mirror', ossfs)
 ```
-
 
 ## OSS URLs
 

@@ -223,13 +223,13 @@ class OSSFS(FS):
         bucket_name (str): The OSS bucket name.
         dir_path (str): The root directory within the OSS Bucket. \
             Defaults to ``"/"``
-        aws_access_key_id (str): The access key, or ``None`` to read \
+        oss_access_key_id (str): The access key, or ``None`` to read \
             the key from standard configuration files.
-        aws_secret_access_key (str): The secret key, or ``None`` to \
+        oss_secret_access_key (str): The secret key, or ``None`` to \
             read the key from standard configuration files.
         endpoint_url (str): Alternative endpoint url (``None`` to use \
             default).
-        aws_session_token (str):
+        oss_session_token (str):
         region (str): Optional OSS region.
         delimiter (str): The delimiter to separate folders, defaults to \
             a forward slash.
@@ -288,9 +288,9 @@ class OSSFS(FS):
         self,
         bucket_name,
         dir_path="/",
-        aws_access_key_id=None,
-        aws_secret_access_key=None,
-        aws_session_token=None,
+        oss_access_key_id=None,
+        oss_secret_access_key=None,
+        oss_session_token=None,
         endpoint_url=None,
         region=None,
         delimiter="/",
@@ -300,22 +300,26 @@ class OSSFS(FS):
         upload_args=None,
         download_args=None,
     ):
-        self._init_aliyun()
-        _creds = (aws_access_key_id, aws_secret_access_key)
+        # boto3 client and resource support config argument, so we needn't using awscli
+        # self._init_aliyun()
+        _creds = (oss_access_key_id, oss_secret_access_key)
 
         if any(_creds) and not all(_creds):
             raise ValueError(
-                "aws_access_key_id and aws_secret_access_key "
+                "oss_access_key_id and oss_secret_access_key "
                 "must be set together if specified"
             )
 
         self._bucket_name = bucket_name
         self.dir_path = dir_path
         self._prefix = relpath(normpath(dir_path)).rstrip("/")
-        self.aws_access_key_id = aws_access_key_id
-        self.aws_secret_access_key = aws_secret_access_key
-        self.aws_session_token = aws_session_token
-        self.endpoint_url = endpoint_url
+        self.aws_access_key_id = oss_access_key_id
+        self.aws_secret_access_key = oss_secret_access_key
+        self.aws_session_token = oss_session_token
+        if region and endpoint_url is None:
+            self.endpoint_url = "https://" + region + ".aliyuncs.com"
+        else:
+            self.endpoint_url = endpoint_url
         self.region = region
         self.delimiter = delimiter
         self.strict = strict
@@ -341,7 +345,7 @@ class OSSFS(FS):
 
         if exist_tool('aws'):
             shell_cmd = ['aws', 'configure', 'set', 's3.addressing_style', 'virtual', '--p', 'aliyun']
-            logger.debug('Initialize AliCloud OSS: %s' % ' '.join(shell_cmd))
+            logger.info('Initialize AliCloud OSS: %s in %s' % (' '.join(shell_cmd), temp_file.name))
             check_output(shell_cmd)
         else:
             logger.info('Please install awscli firstly. `pip install awscli`')
@@ -421,6 +425,14 @@ class OSSFS(FS):
     @property
     def oss(self):
         if not hasattr(self._tlocal, "oss"):
+            from botocore.config import Config
+            from botocore import UNSIGNED
+
+            if self.aws_access_key_id and self.aws_secret_access_key:
+                signature_version = "s3v4"
+            else:
+                signature_version = UNSIGNED
+
             self._tlocal.oss = self.session.resource(
                 "s3",
                 region_name=self.region,
@@ -428,6 +440,8 @@ class OSSFS(FS):
                 aws_secret_access_key=self.aws_secret_access_key,
                 aws_session_token=self.aws_session_token,
                 endpoint_url=self.endpoint_url,
+                config=Config(signature_version=signature_version,
+                              s3={"addressing_style": "virtual"})
             )
 
         return self._tlocal.oss
@@ -435,6 +449,14 @@ class OSSFS(FS):
     @property
     def client(self):
         if not hasattr(self._tlocal, "client"):
+            from botocore.config import Config
+            from botocore import UNSIGNED
+
+            if self.aws_access_key_id and self.aws_secret_access_key:
+                signature_version = "s3v4"
+            else:
+                signature_version = UNSIGNED
+
             self._tlocal.client = self.session.client(
                 "s3",
                 region_name=self.region,
@@ -442,6 +464,8 @@ class OSSFS(FS):
                 aws_secret_access_key=self.aws_secret_access_key,
                 aws_session_token=self.aws_session_token,
                 endpoint_url=self.endpoint_url,
+                config=Config(signature_version=signature_version,
+                              s3={"addressing_style": "virtual"})
             )
 
         return self._tlocal.client
